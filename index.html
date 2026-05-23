@@ -2,11 +2,12 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Экзамен: Алгоритмизация и программирование</title>
     <style>
         * {
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent; /* Убирает системную подсветку клика на Android/iOS */
         }
 
         body {
@@ -15,24 +16,26 @@
             color: #333;
             display: flex;
             justify-content: center;
-            padding: 20px;
+            padding: 15px;
             margin: 0;
+            min-height: 100vh;
         }
 
         #app {
             background: #ffffff;
-            padding: 30px;
+            padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             max-width: 800px;
             width: 100%;
+            height: fit-content;
         }
 
         h1 {
             text-align: center;
             color: #2c3e50;
             margin-top: 0;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
         }
 
         .header-info {
@@ -47,7 +50,7 @@
         h2 {
             margin: 0;
             color: #34495e;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
 
         #score-live {
@@ -58,11 +61,11 @@
         #question-text {
             font-size: 1.1rem;
             line-height: 1.5;
-            margin-bottom: 25px;
-            white-space: pre-wrap;
+            margin-bottom: 20px;
+            font-weight: 500;
         }
 
-        button {
+        .option-btn {
             display: block;
             width: 100%;
             padding: 15px;
@@ -75,24 +78,43 @@
             font-size: 1rem;
             text-align: left;
             transition: all 0.2s ease;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        button:hover {
-            background: #ebf5ff;
+        /* Стиль выбранного ответа (поддерживает множественный выбор) */
+        .option-btn.selected {
+            background: #e8f4ff;
             border-color: #007bff;
+            color: #004085;
+            font-weight: 600;
+            box-shadow: inset 0 0 0 1px #007bff;
         }
 
-        #start-btn, #result-container button {
+        .primary-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            margin-top: 25px;
             background: #007bff;
             color: white;
             border: none;
-            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
             font-weight: bold;
+            text-align: center;
+            transition: background 0.2s;
         }
 
-        #start-btn:hover, #result-container button:hover {
+        .primary-btn:hover {
             background: #0056b3;
+        }
+
+        #submit-btn {
+            background: #28a745;
+        }
+        
+        #submit-btn:hover {
+            background: #218838;
         }
 
         #result-container {
@@ -109,11 +131,11 @@
 </head>
 <body>
     <div id="app">
-        <h1>Тест: Алгоритмизация и программирование</h1>
+        <h1>Алгоритмизация и программирование</h1>
         
         <div id="start-container">
-            <p style="text-align: center;">Вам будет предложено 40 случайных вопросов из базы.</p>
-            <button id="start-btn" onclick="initQuiz()">Начать тест</button>
+            <p style="text-align: center; color: #666;">Тестирование состоит из 40 случайных вопросов. Вы можете выбирать один или несколько вариантов ответа (если применимо).</p>
+            <button class="primary-btn" onclick="initQuiz()">Начать тест</button>
         </div>
 
         <div id="quiz-container" style="display: none;">
@@ -123,24 +145,29 @@
             </div>
             <p id="question-text"></p>
             <div id="options-container"></div>
+            
+            <button id="submit-btn" class="primary-btn" style="display: none;" onclick="submitAnswer()">Ответить</button>
         </div>
 
         <div id="result-container" style="display: none;">
             <h2>Тест завершен!</h2>
             <p id="score-final"></p>
-            <button onclick="location.reload()">Пройти заново</button>
+            <button class="primary-btn" onclick="location.reload()">Пройти заново</button>
         </div>
     </div>
 
     <script>
+        // База данных вопросов. 
+        // Если в будущем захотите сделать несколько правильных ответов в одном вопросе, 
+        // просто напишите a: [0, 1] вместо a: 0. Код это распознает.
         const allQuestions = [
             { q: "1) Что является целью изучения дисциплины «Алгоритмизация и программирование»?", o: ["является изучение теоретических основ программирования и приобретение навыков разработки алгоритмов решения задач, и перевода их в программы", "является изучение артефактов, связанных со сбором, хранением, передачей, обработкой данных средствами вычислительной техники"], a: 0 },
             { q: "2) Какой язык называется языком программирования?", o: ["формальный язык, предназначенный для записи компьютерных программ;", "естественный разговорный язык, на котором люди общаются между собой."], a: 0 },
             { q: "3) Какими из перечисленных свойств должен обладать алгоритм?", o: ["дискретность и конечность", "только простата"], a: 0 },
             { q: "4) Что такое компьютер?", o: ["программно управляемое электронное устройство для обработки информации;", "электронное устройство, предназначенное для автоматизации процессов сбора, хранения, передачи и обработки данных и работающее под управлением программ;", "технически сложное устройство, работающее под управлением человека и предназначенное для арифметических операций."], a: 1 },
-            { q: "5) Теоретической основой структурного программирования принято считать:", o: ["принципы, изложенные в классической работе Коррадо Бома и Джузеппе Джакопини (1965);", "структурную теорему Э. Дейкстры «Алгоритм решения любой задача может быть построен с использованием только трех типов вычислительных структур...»", "языки программирования высокого уровня."], a: 0 },
+            { q: "5) Теоретической основой структурного программирования принято считать:", o: ["принципы, изложенные в классической работе Коррадо Бома и Джузеппе Джакопини (1965);", "структурную теорему Э. Дейкстры «Алгоритм решения любой задачи может быть построен с использованием только трех типов вычислительных структур...»", "языки программирования высокого уровня."], a: 0 },
             { q: "6) Структурное программирование", o: ["разрешает использование оператора безусловного перехода GOTO.", "запрещает использование произвольных переходов к метке, за счет чего программа приобретает более упорядоченный характер."], a: 1 },
-            { q: "7) Согласно ГОСТ 19.701-90 блоком начала/конца (овал)", o: ["начинается и заканчивается любая процедура, функция;", "из блока всегда выходит стрелка управления.", "тип возвращаемого значения и аргументов функции обычно указывается в комментариях к блоку."], a: 0 },
+            { q: "7) Согласно ГОСТ 19.701-90 блоком начала/конца (овал)", o: ["начинается и заканчивается любая процедура, функция;", "из блока всегда выходит стрелка управления;", "тип возвращаемого значения и аргументов функции обычно указывается в комментариях к блоку."], a: 0 },
             { q: "8) Согласно ГОСТ 19.701-90 блок-соединитель (круг) используется", o: ["если блок-схема не умещается на листе;", "отражает переход потока управления между листами;", "не отражает переход потока управления."], a: 0 },
             { q: "9) Что такое алгоритм?", o: ["это набор действий, реализация которых может привести к решению задачи;", "это понятный исполнителю набор правил для решения конкретного множества задач...", "это чётко определённая последовательность действий или инструкций, предназначенная для решения определённой задачи или класса задач."], a: 2 },
             { q: "10) Согласно ГОСТ 19.701-90 Операции ввода/вывода данных (параллелограмм)", o: ["определяется множество символов ввода/вывода, например вывод на дисплеи...", "если источник данных не принципиален, обычно используется символ параллелограмма;", "подробности ввода/вывода не могут быть указаны в комментариях."], a: 1 },
@@ -229,19 +256,29 @@
         let score = 0;
         let currentQuestionIndex = 0;
         let selectedQuestions = [];
+        let userSelectedIndices = new Set(); // Хранит индексы, которые выбрал пользователь для текущего вопроса
 
         function initQuiz() {
             score = 0;
             currentQuestionIndex = 0;
+            userSelectedIndices.clear();
+            
             document.getElementById('start-container').style.display = 'none';
             document.getElementById('result-container').style.display = 'none';
             document.getElementById('quiz-container').style.display = 'block';
 
+            // Перемешиваем вопросы и берем 40
             let shuffledQuestions = [...allQuestions].sort(() => 0.5 - Math.random());
             selectedQuestions = shuffledQuestions.slice(0, 40);
 
+            // Подготавливаем варианты ответов
             selectedQuestions.forEach(q => {
-                let opts = q.o.map((text, i) => ({ text, isCorrect: i === q.a }));
+                let opts = q.o.map((text, index) => {
+                    // Универсальная проверка: если 'a' это массив, ищем в нем, иначе сравниваем как число
+                    let isCorrect = Array.isArray(q.a) ? q.a.includes(index) : index === q.a;
+                    return { text: text, isCorrect: isCorrect };
+                });
+                // Перемешиваем варианты ответов
                 opts.sort(() => 0.5 - Math.random());
                 q.options = opts;
             });
@@ -262,17 +299,56 @@
 
             const optsContainer = document.getElementById('options-container');
             optsContainer.innerHTML = '';
+            
+            // Сбрасываем выбранные ответы и прячем кнопку "Ответить"
+            userSelectedIndices.clear();
+            document.getElementById('submit-btn').style.display = 'none';
 
-            q.options.forEach(opt => {
+            q.options.forEach((opt, index) => {
                 const btn = document.createElement('button');
+                btn.className = 'option-btn';
                 btn.innerText = opt.text;
-                btn.onclick = () => handleAnswer(opt.isCorrect);
+                btn.onclick = () => toggleOption(btn, index);
                 optsContainer.appendChild(btn);
             });
         }
 
-        function handleAnswer(isCorrect) {
-            if (isCorrect) score++;
+        function toggleOption(btnElement, index) {
+            // Если ответ уже выбран - снимаем выделение, если нет - добавляем
+            if (userSelectedIndices.has(index)) {
+                userSelectedIndices.delete(index);
+                btnElement.classList.remove('selected');
+            } else {
+                userSelectedIndices.add(index);
+                btnElement.classList.add('selected');
+            }
+
+            // Показываем кнопку "Ответить" только если выбран хотя бы один вариант
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.style.display = userSelectedIndices.size > 0 ? 'block' : 'none';
+        }
+
+        function submitAnswer() {
+            const q = selectedQuestions[currentQuestionIndex];
+            
+            // Проверяем, точно ли совпадают выбранные варианты с правильными
+            let isPerfectMatch = true;
+            for (let i = 0; i < q.options.length; i++) {
+                const isSelectedByUser = userSelectedIndices.has(i);
+                const isCorrectOption = q.options[i].isCorrect;
+                
+                if (isSelectedByUser !== isCorrectOption) {
+                    isPerfectMatch = false;
+                    break;
+                }
+            }
+
+            // Начисляем балл, только если выбраны ВСЕ правильные ответы и НИ ОДНОГО лишнего
+            if (isPerfectMatch) {
+                score++;
+            }
+
+            // Переход к следующему вопросу
             currentQuestionIndex++;
             renderQuestion();
         }
@@ -284,4 +360,4 @@
         }
     </script>
 </body>
-    </html>
+</html>
